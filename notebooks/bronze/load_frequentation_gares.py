@@ -47,3 +47,5 @@ if row_count == 0:
 )
 
 print(f"Wrote {row_count} rows to {target_table}")
+
+

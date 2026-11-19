@@ -70,5 +70,44 @@ class BronzeColumnMappingTests(unittest.TestCase):
         self.assertIn('.option("multiLine", "true")', notebook_source)
 
 
+class SilverNotebookTests(unittest.TestCase):
+    SILVER_NOTEBOOKS = (
+        "build_regularite_ter.py",
+        "build_regularite_tgv.py",
+        "build_frequentation_gares.py",
+    )
+
+    def test_silver_notebooks_exist_and_are_syntax_valid(self):
+        for notebook_name in self.SILVER_NOTEBOOKS:
+            notebook_path = ROOT / "notebooks" / "silver" / notebook_name
+            with self.subTest(notebook=notebook_name):
+                notebook_source = notebook_path.read_text(encoding="utf-8")
+                ast.parse(notebook_source)
+                self.assertIn(".saveAsTable(target_table)", notebook_source)
+                self.assertIn('mode("overwrite")', notebook_source)
+
+    def test_job_defines_silver_dependencies(self):
+        jobs_path = ROOT / "resources" / "jobs.yml"
+        jobs_source = jobs_path.read_text(encoding="utf-8")
+
+        required_tasks = (
+            "load_ref_gares",
+            "load_frequentation_gares",
+            "load_regularite_ter",
+            "load_regularite_tgv",
+            "build_silver_frequentation",
+            "build_silver_regularite_ter",
+            "build_silver_regularite_tgv",
+        )
+        for task_key in required_tasks:
+            with self.subTest(task_key=task_key):
+                self.assertIn(f"- task_key: {task_key}", jobs_source)
+
+        self.assertIn(
+            "depends_on:\n            - task_key: load_ref_gares",
+            jobs_source,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

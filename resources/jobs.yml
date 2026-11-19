@@ -1,8 +1,33 @@
 resources:
   jobs:
-    bronze_ref_gares:
-      name: ${bundle.target}-bronze-ref-gares
+    bronze_to_silver:
+      name: ${bundle.target}-bronze-to-silver
       tasks:
         - task_key: load_ref_gares
           notebook_task:
             notebook_path: ../notebooks/bronze/load_ref_gares.py
+        - task_key: load_frequentation_gares
+          notebook_task:
+            notebook_path: ../notebooks/bronze/load_frequentation_gares.py
+        - task_key: load_regularite_ter
+          notebook_task:
+            notebook_path: ../notebooks/bronze/load_regularite_ter.py
+        - task_key: load_regularite_tgv
+          notebook_task:
+            notebook_path: ../notebooks/bronze/load_regularite_tgv.py
+        - task_key: build_silver_frequentation
+          depends_on:
+            - task_key: load_ref_gares
+            - task_key: load_frequentation_gares
+          notebook_task:
+            notebook_path: ../notebooks/silver/build_frequentation_gares.py
+        - task_key: build_silver_regularite_ter
+          depends_on:
+            - task_key: load_regularite_ter
+          notebook_task:
+            notebook_path: ../notebooks/silver/build_regularite_ter.py
+        - task_key: build_silver_regularite_tgv
+          depends_on:
+            - task_key: load_regularite_tgv
+          notebook_task:
+            notebook_path: ../notebooks/silver/build_regularite_tgv.py
