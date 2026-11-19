@@ -32,6 +32,14 @@ raw_data = (
 if set(raw_data.columns) != set(column_mapping):
     raise ValueError(f"Unexpected TER regularity CSV columns: {raw_data.columns}")
 
+# Écarte les fragments de commentaires que le parseur CSV peut lire comme des lignes.
+valid_period = F.col("Date").rlike(r"^[0-9]{4}-(0[1-9]|1[0-2])$")
+valid_period = F.coalesce(valid_period, F.lit(False))
+invalid_period_count = raw_data.where(~valid_period).count()
+raw_data = raw_data.where(valid_period)
+if invalid_period_count > 0:
+    print(f"Discarded {invalid_period_count} TER rows with invalid monthly dates")
+
 regularite_ter = raw_data.select(
     *[
         F.col(f"`{source_column}`").alias(target_column)

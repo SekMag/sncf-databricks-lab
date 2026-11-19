@@ -33,6 +33,10 @@ regularite = (
         F.col("nombre_trains_en_retard_a_l_arrivee").cast(T.IntegerType()),
     )
     .withColumn(
+        "_taux_regularite_source",
+        F.trim(F.col("taux_regularite")),
+    )
+    .withColumn(
         "taux_regularite",
         F.col("taux_regularite").cast(T.DecimalType(7, 2)),
     )
@@ -43,8 +47,18 @@ regularite = (
         ).cast(T.DoubleType()),
     )
      .withColumn("commentaires", F.nullif(F.trim(F.col("commentaires")), F.lit("")))
-    .dropDuplicates(["date", "region"])
 )
+
+# Exclut explicitement les lignes dont la source ne fournit pas le taux.
+missing_rate = F.col("_taux_regularite_source").isNull() | (
+    F.col("_taux_regularite_source") == ""
+)
+missing_rate_count = regularite.where(missing_rate).count()
+regularite = regularite.where(~missing_rate).drop("_taux_regularite_source")
+if missing_rate_count > 0:
+    print(f"Excluded {missing_rate_count} TER rows with missing regularity rate")
+
+regularite = regularite.dropDuplicates(["date", "region"])
 
 # Les données incohérentes font échouer le traitement avant toute écriture.
 invalid_rows = regularite.where(

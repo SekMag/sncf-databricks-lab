@@ -69,6 +69,10 @@ class BronzeColumnMappingTests(unittest.TestCase):
 
         self.assertIn('.option("multiLine", "true")', notebook_source)
         self.assertIn(".option(\"escape\", '\"')", notebook_source)
+        self.assertIn(
+            'F.col("Date").rlike(r"^[0-9]{4}-(0[1-9]|1[0-2])$")',
+            notebook_source,
+        )
 
 
 class SilverNotebookTests(unittest.TestCase):
@@ -108,6 +112,15 @@ class SilverNotebookTests(unittest.TestCase):
             "depends_on:\n            - task_key: load_ref_gares",
             jobs_source,
         )
+
+    def test_ter_excludes_missing_rates_and_reports_the_count(self):
+        notebook_path = ROOT / "notebooks" / "silver" / "build_regularite_ter.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn('F.col("_taux_regularite_source") == ""', notebook_source)
+        self.assertIn('drop("_taux_regularite_source")', notebook_source)
+        self.assertIn("missing_rate_count", notebook_source)
+        self.assertIn("Excluded {missing_rate_count}", notebook_source)
 
 
 if __name__ == "__main__":
