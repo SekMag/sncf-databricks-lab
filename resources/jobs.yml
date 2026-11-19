@@ -1,0 +1,8 @@
+resources:
+  jobs:
+    bronze_ref_gares:
+      name: ${bundle.target}-bronze-ref-gares
+      tasks:
+        - task_key: load_ref_gares
+          notebook_task:
+            notebook_path: ../notebooks/bronze/load_ref_gares.py

@@ -122,6 +122,13 @@ Plain Text
 bronze.regularite_ter
 bronze.regularite_tgv
 bronze.ref_gares
+
+Premier flux implémenté en dev :
+
+- le job Databricks `bronze_ref_gares` lit le CSV depuis le volume Unity Catalog `/Volumes/lab_talan/bronze/raw_files/`
+- la table `lab_talan.bronze.ref_gares` contient les 2 792 lignes, les valeurs sont conservées en texte et les colonnes sont nommées en snake_case
+- les colonnes `_source_file` et `_ingested_at` assurent la traçabilité du chargement
+
 🥈 Silver Layer
 
 Objectif :
