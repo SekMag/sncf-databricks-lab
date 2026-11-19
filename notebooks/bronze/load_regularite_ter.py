@@ -23,6 +23,7 @@ raw_data = (
     .option("delimiter", ";")
     .option("encoding", "UTF-8")
     .option("inferSchema", "false")
+    .option("multiLine", "true")
     .load(source_path)
 )
 
