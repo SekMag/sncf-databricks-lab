@@ -6,6 +6,7 @@ frequentation_source = "lab_talan.bronze.frequentation_gares"
 gares_source = "lab_talan.bronze.ref_gares"
 target_table = "lab_talan.silver.frequentation_gares"
 
+# Normalise les champs clés et convertit les volumes en valeurs numériques.
 frequentation = (
     spark.table(frequentation_source)
     .withColumn("nom_de_la_gare", F.initcap(F.trim(F.col("nom_de_la_gare"))))
@@ -21,6 +22,7 @@ frequentation = (
     )
 )
 
+# Prépare une ligne de référence par code UIC pour éviter de multiplier les lignes à la jointure.
 gares = (
     spark.table(gares_source)
     .select(
@@ -32,6 +34,7 @@ gares = (
     .dropDuplicates(["code_uic"])
 )
 
+# Enrichit la fréquentation sans exclure les gares absentes du référentiel.
 frequentation = (
     frequentation
     .join(gares, "code_uic", "left")
@@ -43,6 +46,7 @@ frequentation = (
     .withColumn("_silver_ingested_at", F.current_timestamp())
 )
 
+# Bloque l'écriture si les identifiants ou les volumes obligatoires sont invalides.
 invalid_rows = frequentation.where(
     F.col("code_uic").isNull()
     | F.col("nom_de_la_gare").isNull()
@@ -62,6 +66,7 @@ row_count = frequentation.count()
 if row_count == 0:
     raise ValueError("No station frequentation rows are available")
 
+# Remplace la table Silver avec les données contrôlées et enrichies.
 frequentation.write.format("delta").mode("overwrite").option(
     "overwriteSchema", "true"
 ).saveAsTable(target_table)

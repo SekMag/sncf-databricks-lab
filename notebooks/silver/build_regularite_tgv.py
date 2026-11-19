@@ -7,6 +7,8 @@ target_table = "lab_talan.silver.regularite_tgv"
 
 source = spark.table(source_table)
 
+# Convertit la période mensuelle et les indicateurs en types analytiques,
+# puis conserve une seule observation par mois et par axe.
 regularite = (
     source
     .withColumn(
@@ -25,6 +27,7 @@ regularite = (
     .dropDuplicates(["date", "axe"])
 )
 
+# Les dates, axes et taux doivent être renseignés ; les taux sont des pourcentages.
 invalid_rows = regularite.where(
     F.col("date").isNull()
     | F.col("axe").isNull()
@@ -48,6 +51,7 @@ row_count = regularite.count()
 if row_count == 0:
     raise ValueError("No TGV regularity rows are available")
 
+# Publie la table Silver après validation et déduplication.
 regularite.write.format("delta").mode("overwrite").option(
     "overwriteSchema", "true"
 ).saveAsTable(target_table)
