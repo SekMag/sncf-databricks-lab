@@ -41,11 +41,11 @@ jobs:
 
       - name: Configure Databricks profile
         env:
-          DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
           if [[ -z "$DATABRICKS_HOST" ]]; then
-            echo "::error::Set the DATABRICKS_HOST Actions variable."
+            echo "::error::Set the DATABRICKS_HOST Actions secret."
             exit 1
           fi
           if [[ -z "$DATABRICKS_TOKEN" ]]; then
