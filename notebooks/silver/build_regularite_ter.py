@@ -42,7 +42,7 @@ regularite = (
             "nombre_trains_a_l_heure_par_train_en_retard_a_l_arrivee"
         ).cast(T.DoubleType()),
     )
-    .withColumn("commentaires", F.nullif(F.trim(F.col("commentaires")), ""))
+     .withColumn("commentaires", F.nullif(F.trim(F.col("commentaires")), F.lit("")))
     .dropDuplicates(["date", "region"])
 )
 
