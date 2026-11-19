@@ -122,6 +122,21 @@ class SilverNotebookTests(unittest.TestCase):
         self.assertIn("missing_rate_count", notebook_source)
         self.assertIn("Excluded {missing_rate_count}", notebook_source)
 
+    def test_tgv_excludes_missing_metrics_and_reports_the_count(self):
+        notebook_path = ROOT / "notebooks" / "silver" / "build_regularite_tgv.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'F.col("_regularite_composite_source") == ""',
+            notebook_source,
+        )
+        self.assertIn(
+            'F.col("_ponctualite_origine_source") == ""',
+            notebook_source,
+        )
+        self.assertIn("missing_metrics_count", notebook_source)
+        self.assertIn("Excluded {missing_metrics_count}", notebook_source)
+
 
 if __name__ == "__main__":
     unittest.main()

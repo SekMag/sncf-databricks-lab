@@ -17,6 +17,14 @@ regularite = (
     )
     .withColumn("axe", F.initcap(F.trim(F.col("axe"))))
     .withColumn(
+        "_regularite_composite_source",
+        F.trim(F.col("regularite_composite")),
+    )
+    .withColumn(
+        "_ponctualite_origine_source",
+        F.trim(F.col("ponctualite_origine")),
+    )
+    .withColumn(
         "regularite_composite",
         F.col("regularite_composite").cast(T.DoubleType()),
     )
@@ -24,8 +32,24 @@ regularite = (
         "ponctualite_origine",
         F.col("ponctualite_origine").cast(T.DoubleType()),
     )
-    .dropDuplicates(["date", "axe"])
 )
+
+# Exclut les lignes sans indicateurs publiés, en signalant leur nombre.
+missing_metrics = (
+    F.col("_regularite_composite_source").isNull()
+    | (F.col("_regularite_composite_source") == "")
+    | F.col("_ponctualite_origine_source").isNull()
+    | (F.col("_ponctualite_origine_source") == "")
+)
+missing_metrics_count = regularite.where(missing_metrics).count()
+regularite = regularite.where(~missing_metrics).drop(
+    "_regularite_composite_source",
+    "_ponctualite_origine_source",
+)
+if missing_metrics_count > 0:
+    print(f"Excluded {missing_metrics_count} TGV rows with missing metrics")
+
+regularite = regularite.dropDuplicates(["date", "axe"])
 
 # Les dates, axes et taux doivent être renseignés ; les taux sont des pourcentages.
 invalid_rows = regularite.where(
