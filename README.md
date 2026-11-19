@@ -216,7 +216,7 @@ databricks bundle deploy --target dev
 databricks bundle run --target dev
 ```
 
-Pour GitHub Actions, stockez les identifiants nécessaires dans les secrets ou environnements GitHub appropriés ; ne les ajoutez jamais au dépôt.
+Le workflow `.github/workflows/deploy.yml` exécute les contrôles sur les Pull Requests et déploie la cible `dev` après un push sur `main`. Configurez la variable GitHub Actions `DATABRICKS_HOST` et le secret `DATABRICKS_TOKEN` (PAT de développement) ; ne stockez jamais le token dans le dépôt. Le déploiement utilise un profil temporaire sur le runner GitHub, qui est détruit à la fin du job. Pour la production, préférez une identité de service dédiée plutôt qu’un PAT personnel.
 
 ## 🗺️ Roadmap
 

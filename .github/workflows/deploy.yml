@@ -1,0 +1,63 @@
+name: Databricks CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Validate Bronze notebooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Test notebook schemas and CSV headers
+        run: python -m unittest discover -s tests -v
+
+  deploy-dev:
+    name: Deploy to dev
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@v1.27.0
+
+      - name: Configure Databricks profile
+        env:
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          if [[ -z "$DATABRICKS_HOST" ]]; then
+            echo "::error::Set the DATABRICKS_HOST Actions variable."
+            exit 1
+          fi
+          if [[ -z "$DATABRICKS_TOKEN" ]]; then
+            echo "::error::Set the DATABRICKS_TOKEN Actions secret."
+            exit 1
+          fi
+          umask 077
+          printf '[DEV]\nhost = "%s"\ntoken = "%s"\n' \
+            "$DATABRICKS_HOST" "$DATABRICKS_TOKEN" > "$HOME/.databrickscfg"
+
+      - name: Validate bundle
+        run: databricks bundle validate --target dev
+
+      - name: Deploy bundle to dev
+        run: databricks bundle deploy --target dev
