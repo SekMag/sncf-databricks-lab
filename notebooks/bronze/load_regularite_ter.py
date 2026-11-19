@@ -24,6 +24,8 @@ raw_data = (
     .option("encoding", "UTF-8")
     .option("inferSchema", "false")
     .option("multiLine", "true")
+    # Le CSV échappe les guillemets internes en les doublant.
+    .option("escape", '"')
     .load(source_path)
 )
 

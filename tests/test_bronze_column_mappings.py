@@ -68,6 +68,7 @@ class BronzeColumnMappingTests(unittest.TestCase):
         notebook_source = notebook_path.read_text(encoding="utf-8")
 
         self.assertIn('.option("multiLine", "true")', notebook_source)
+        self.assertIn(".option(\"escape\", '\"')", notebook_source)
 
 
 class SilverNotebookTests(unittest.TestCase):
