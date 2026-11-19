@@ -84,17 +84,21 @@ Jeu de données permettant d’étudier la ponctualité par axe, les résultats 
 
 **Objectif :** charger les fichiers bruts et préserver leur contenu ainsi que leur traçabilité, sans appliquer de transformation métier importante.
 
-Tables cibles envisagées :
+Tables cibles :
 
-- `bronze.regularite_ter`
-- `bronze.regularite_tgv`
-- `bronze.ref_gares`
+- `lab_talan.bronze.ref_gares`
+- `lab_talan.bronze.frequentation_gares`
+- `lab_talan.bronze.regularite_ter`
+- `lab_talan.bronze.regularite_tgv`
 
-Premier flux implémenté en dev :
+Notebooks d’ingestion :
 
-- le job Databricks `bronze_ref_gares` lit le CSV depuis le volume Unity Catalog `/Volumes/lab_talan/bronze/raw_files/`
-- la table `lab_talan.bronze.ref_gares` contient les 2 792 lignes, les valeurs sont conservées en texte et les colonnes sont nommées en snake_case
-- les colonnes `_source_file` et `_ingested_at` assurent la traçabilité du chargement
+- `notebooks/bronze/load_ref_gares.py`
+- `notebooks/bronze/load_frequentation_gares.py`
+- `notebooks/bronze/load_regularite_ter.py`
+- `notebooks/bronze/load_regularite_tgv.py`
+
+Le notebook des gares a été exécuté en développement : la table `lab_talan.bronze.ref_gares` contient 2 792 lignes. Les trois autres notebooks sont prêts pour l’orchestration ; leurs CSV doivent être présents dans le volume `/Volumes/lab_talan/bronze/raw_files/`. Les notebooks conservent les valeurs source en texte, normalisent les noms de colonnes pour Delta et ajoutent `_source_file` et `_ingested_at`.
 
 ## 🥈 Silver — qualité et enrichissement
 
