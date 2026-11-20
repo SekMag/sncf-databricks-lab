@@ -11,9 +11,13 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : charge les données Silver TGV.
 source = spark.table(source_table)
 afficher_etape("Source Silver TGV", source)
+
+# COMMAND ----------
 
 # Étape 2 : calcule les moyennes et les périodes disponibles par axe.
 axes = source.groupBy("axe").agg(
@@ -24,6 +28,8 @@ axes = source.groupBy("axe").agg(
     F.max("date").alias("dernier_mois"),
 )
 afficher_etape("Moyennes par axe", axes)
+
+# COMMAND ----------
 
 # Étape 3 : classe les axes selon leur régularité composite moyenne.
 axes = axes.withColumn(
@@ -38,6 +44,8 @@ axes = axes.withColumn(
 )
 afficher_etape("Axes classés", axes)
 
+# COMMAND ----------
+
 # Étape 4 : affiche les lignes qui bloqueraient l'écriture Gold.
 invalid_rows = axes.where(
     F.col("axe").isNull()
@@ -46,11 +54,16 @@ invalid_rows = axes.where(
     | (F.col("nombre_mois_observes") <= 0)
 )
 afficher_etape("Lignes invalides", invalid_rows)
+
+# COMMAND ----------
+
 invalid_count = invalid_rows.count()
 if invalid_count > 0:
     raise ValueError(
         f"{invalid_count} invalid TGV axis ranking rows found; write would fail"
     )
+
+# COMMAND ----------
 
 # Étape 5 : affiche le résultat final, sans écrire la table Gold.
 result = axes.withColumn("_gold_generated_at", F.current_timestamp())

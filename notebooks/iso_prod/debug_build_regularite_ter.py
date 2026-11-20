@@ -11,9 +11,13 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : charge la table Bronze.
 source = spark.table(source_table)
 afficher_etape("Source Bronze", source)
+
+# COMMAND ----------
 
 # Étape 2 : convertit les dates, les libellés et les mesures.
 regularite = (
@@ -60,14 +64,21 @@ regularite = (
 )
 afficher_etape("Données converties", regularite)
 
+# COMMAND ----------
+
 # Étape 3 : affiche les taux absents, puis applique la règle Silver existante.
 missing_rate = F.col("_taux_regularite_source").isNull() | (
     F.col("_taux_regularite_source") == ""
 )
 missing_rows = regularite.where(missing_rate)
 afficher_etape("Lignes écartées : taux absent", missing_rows)
+
+# COMMAND ----------
+
 regularite = regularite.where(~missing_rate).drop("_taux_regularite_source")
 afficher_etape("Lignes avec taux", regularite)
+
+# COMMAND ----------
 
 # Étape 4 : déduplique et affiche les anomalies bloquantes.
 regularite = regularite.dropDuplicates(["date", "region"])
@@ -85,9 +96,14 @@ invalid_rows = regularite.where(
     | (F.col("taux_regularite") > 100)
 )
 afficher_etape("Lignes invalides", invalid_rows)
+
+# COMMAND ----------
+
 invalid_count = invalid_rows.count()
 if invalid_count > 0:
     raise ValueError(f"{invalid_count} invalid TER rows found; write would fail")
+
+# COMMAND ----------
 
 # Étape 5 : affiche le résultat qui serait écrit dans la table Silver.
 result = regularite.withColumn("_silver_ingested_at", F.current_timestamp())

@@ -20,6 +20,8 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : lit et affiche le CSV brut, sans écrire de table.
 raw_stations = (
     spark.read.format("csv")
@@ -31,10 +33,14 @@ raw_stations = (
 )
 afficher_etape("CSV brut", raw_stations)
 
+# COMMAND ----------
+
 # Étape 2 : vérifie que les colonnes du fichier correspondent au mapping.
 if set(raw_stations.columns) != set(column_mapping):
     raise ValueError(f"Unexpected station CSV columns: {raw_stations.columns}")
 print(f"Colonnes détectées : {raw_stations.columns}")
+
+# COMMAND ----------
 
 # Étape 3 : renomme les colonnes et ajoute les métadonnées Bronze.
 stations = raw_stations.select(

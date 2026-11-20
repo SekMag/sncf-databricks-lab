@@ -10,9 +10,13 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : charge les données Silver TER.
 source = spark.table(source_table)
 afficher_etape("Source Silver TER", source)
+
+# COMMAND ----------
 
 # Étape 2 : additionne les volumes par mois et par région.
 retards = source.groupBy("date", "region").agg(
@@ -24,6 +28,8 @@ retards = source.groupBy("date", "region").agg(
     ),
 )
 afficher_etape("Volumes agrégés", retards)
+
+# COMMAND ----------
 
 # Étape 3 : calcule les taux, en évitant les divisions par zéro.
 retards = (
@@ -49,6 +55,8 @@ retards = (
 )
 afficher_etape("Taux calculés", retards)
 
+# COMMAND ----------
+
 # Étape 4 : affiche les lignes qui bloqueraient l'écriture Gold.
 invalid_rows = retards.where(
     F.col("date").isNull()
@@ -59,9 +67,14 @@ invalid_rows = retards.where(
     | F.col("nombre_trains_en_retard_a_l_arrivee").isNull()
 )
 afficher_etape("Lignes invalides", invalid_rows)
+
+# COMMAND ----------
+
 invalid_count = invalid_rows.count()
 if invalid_count > 0:
     raise ValueError(f"{invalid_count} invalid delay KPI rows found; write would fail")
+
+# COMMAND ----------
 
 # Étape 5 : affiche le résultat final, sans écrire la table Gold.
 result = retards.withColumn("_gold_generated_at", F.current_timestamp())
