@@ -176,5 +176,29 @@ class GoldNotebookTests(unittest.TestCase):
         self.assertIn('F.desc("regularite_composite_moyenne_pct")', notebook_source)
 
 
+class IsoProdNotebookTests(unittest.TestCase):
+    def test_iso_prod_notebooks_show_steps_without_writing_tables(self):
+        iso_prod_notebooks = sorted(
+            (ROOT / "notebooks" / "iso_prod").glob("debug_*.py")
+        )
+        self.assertEqual(len(iso_prod_notebooks), 10)
+
+        for notebook_path in iso_prod_notebooks:
+            with self.subTest(notebook=notebook_path.name):
+                notebook_source = notebook_path.read_text(encoding="utf-8")
+                syntax_tree = ast.parse(notebook_source)
+                step_calls = sum(
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "afficher_etape"
+                    for node in ast.walk(syntax_tree)
+                )
+
+                self.assertGreaterEqual(step_calls, 2)
+                self.assertIn("display(dataframe)", notebook_source)
+                self.assertNotIn(".saveAsTable(", notebook_source)
+                self.assertNotIn(".write.format(", notebook_source)
+
+
 if __name__ == "__main__":
     unittest.main()
