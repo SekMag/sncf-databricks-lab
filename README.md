@@ -121,18 +121,24 @@ Tables cibles envisagées :
 
 **Objectif :** fournir des agrégats adaptés à l’analyse et aux tableaux de bord.
 
-Indicateurs envisagés :
+Notebooks Gold :
 
-- ponctualité moyenne et taux de retard
-- évolution mensuelle
-- classement des axes et des régions
-- comparaison TER / TGV
+- `notebooks/gold/build_kpi_ponctualite.py` unifie les indicateurs mensuels TER
+  par région et TGV par axe. Les métriques propres à un transport restent nulles
+  pour l’autre ; le taux TER est calculé à partir des trains en retard et ayant
+  circulé.
+- `notebooks/gold/build_kpi_retards.py` agrège les volumes TER par mois et
+  région, puis calcule les taux d’annulation et de retard à partir des totaux
+  (taux pondérés, et non moyenne des taux régionaux).
+- `notebooks/gold/build_top_axes.py` classe les axes TGV selon leur régularité
+  composite moyenne sur les mois disponibles, avec la ponctualité à l’origine en
+  second critère.
 
-Tables cibles envisagées :
+Tables produites :
 
-- `gold.kpi_ponctualite`
-- `gold.kpi_retards`
-- `gold.top_axes`
+- `lab_talan.gold.kpi_ponctualite`
+- `lab_talan.gold.kpi_retards`
+- `lab_talan.gold.top_axes`
 
 ## 🔄 Workflow Databricks
 
@@ -223,7 +229,7 @@ Le workflow `.github/workflows/deploy.yml` exécute les contrôles sur les Pull 
 - [ ] Importer et documenter les jeux de données SNCF
 - [ ] Développer les notebooks d’ingestion Bronze
 - [ ] Développer les transformations Silver
-- [ ] Construire les agrégats Gold
+- [x] Construire les agrégats Gold
 - [ ] Ajouter les contrôles qualité et les tests
 - [ ] Configurer le workflow Databricks
 - [ ] Mettre en place le déploiement GitHub Actions par environnement

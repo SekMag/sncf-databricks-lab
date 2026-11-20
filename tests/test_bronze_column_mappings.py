@@ -138,5 +138,43 @@ class SilverNotebookTests(unittest.TestCase):
         self.assertIn("Excluded {missing_metrics_count}", notebook_source)
 
 
+class GoldNotebookTests(unittest.TestCase):
+    EXPECTED_OUTPUTS = {
+        "build_kpi_ponctualite.py": "lab_talan.gold.kpi_ponctualite",
+        "build_kpi_retards.py": "lab_talan.gold.kpi_retards",
+        "build_top_axes.py": "lab_talan.gold.top_axes",
+    }
+
+    def test_gold_notebooks_are_valid_and_write_expected_tables(self):
+        for notebook_name, target_table in self.EXPECTED_OUTPUTS.items():
+            notebook_path = ROOT / "notebooks" / "gold" / notebook_name
+            with self.subTest(notebook=notebook_name):
+                notebook_source = notebook_path.read_text(encoding="utf-8")
+                ast.parse(notebook_source)
+                self.assertIn(target_table, notebook_source)
+                self.assertIn(".saveAsTable(target_table)", notebook_source)
+                self.assertIn('mode("overwrite")', notebook_source)
+
+    def test_kpi_tables_preserve_month_and_transport_dimensions(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_kpi_ponctualite.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn('F.lit("TER").alias("transport")', notebook_source)
+        self.assertIn('F.lit("TGV").alias("transport")', notebook_source)
+        self.assertIn("unionByName", notebook_source)
+
+        delays_path = ROOT / "notebooks" / "gold" / "build_kpi_retards.py"
+        delays_source = delays_path.read_text(encoding="utf-8")
+        self.assertIn('.groupBy("date", "region")', delays_source)
+        self.assertIn("taux_trains_en_retard_pct", delays_source)
+
+    def test_axis_ranking_uses_composite_regularity(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_top_axes.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn("F.dense_rank()", notebook_source)
+        self.assertIn('F.desc("regularite_composite_moyenne_pct")', notebook_source)
+
+
 if __name__ == "__main__":
     unittest.main()
