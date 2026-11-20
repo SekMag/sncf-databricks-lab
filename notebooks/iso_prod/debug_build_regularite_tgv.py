@@ -11,9 +11,13 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : charge la table Bronze.
 source = spark.table(source_table)
 afficher_etape("Source Bronze", source)
+
+# COMMAND ----------
 
 # Étape 2 : convertit la période et les indicateurs.
 regularite = (
@@ -42,6 +46,8 @@ regularite = (
 )
 afficher_etape("Données converties", regularite)
 
+# COMMAND ----------
+
 # Étape 3 : affiche les mesures manquantes, puis applique la règle Silver existante.
 missing_metrics = (
     F.col("_regularite_composite_source").isNull()
@@ -51,11 +57,16 @@ missing_metrics = (
 )
 missing_rows = regularite.where(missing_metrics)
 afficher_etape("Lignes écartées : indicateurs absents", missing_rows)
+
+# COMMAND ----------
+
 regularite = regularite.where(~missing_metrics).drop(
     "_regularite_composite_source",
     "_ponctualite_origine_source",
 )
 afficher_etape("Lignes avec indicateurs", regularite)
+
+# COMMAND ----------
 
 # Étape 4 : déduplique et affiche les anomalies bloquantes.
 regularite = regularite.dropDuplicates(["date", "axe"])
@@ -72,9 +83,14 @@ invalid_rows = regularite.where(
     | (F.col("ponctualite_origine") > 100)
 )
 afficher_etape("Lignes invalides", invalid_rows)
+
+# COMMAND ----------
+
 invalid_count = invalid_rows.count()
 if invalid_count > 0:
     raise ValueError(f"{invalid_count} invalid TGV rows found; write would fail")
+
+# COMMAND ----------
 
 # Étape 5 : affiche le résultat qui serait écrit dans la table Silver.
 result = regularite.withColumn("_silver_ingested_at", F.current_timestamp())

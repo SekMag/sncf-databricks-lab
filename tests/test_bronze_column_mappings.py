@@ -196,6 +196,10 @@ class IsoProdNotebookTests(unittest.TestCase):
 
                 self.assertGreaterEqual(step_calls, 2)
                 self.assertIn("display(dataframe)", notebook_source)
+                self.assertGreaterEqual(
+                    notebook_source.count("# COMMAND ----------"),
+                    2,
+                )
                 self.assertNotIn(".saveAsTable(", notebook_source)
                 self.assertNotIn(".write.format(", notebook_source)
 

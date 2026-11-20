@@ -11,6 +11,8 @@ def afficher_etape(nom, dataframe):
     display(dataframe)
 
 
+# COMMAND ----------
+
 # Étape 1 : prépare les indicateurs TER par mois et par région.
 ter = spark.table(ter_source).select(
     "date",
@@ -30,6 +32,8 @@ ter = spark.table(ter_source).select(
 )
 afficher_etape("Indicateurs TER", ter)
 
+# COMMAND ----------
+
 # Étape 2 : prépare les indicateurs TGV par mois et par axe.
 tgv = spark.table(tgv_source).select(
     "date",
@@ -42,9 +46,13 @@ tgv = spark.table(tgv_source).select(
 )
 afficher_etape("Indicateurs TGV", tgv)
 
+# COMMAND ----------
+
 # Étape 3 : réunit les deux transports dans le même schéma.
 kpi = ter.unionByName(tgv)
 afficher_etape("KPI réunis", kpi)
+
+# COMMAND ----------
 
 # Étape 4 : affiche les lignes qui bloqueraient l'écriture Gold.
 invalid_rows = kpi.where(
@@ -57,11 +65,16 @@ invalid_rows = kpi.where(
     )
 )
 afficher_etape("Lignes invalides", invalid_rows)
+
+# COMMAND ----------
+
 invalid_count = invalid_rows.count()
 if invalid_count > 0:
     raise ValueError(
         f"{invalid_count} invalid punctuality KPI rows found; write would fail"
     )
+
+# COMMAND ----------
 
 # Étape 5 : affiche le résultat final, sans écrire la table Gold.
 result = kpi.withColumn("_gold_generated_at", F.current_timestamp())
