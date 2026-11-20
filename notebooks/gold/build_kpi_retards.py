@@ -4,59 +4,47 @@ from pyspark.sql import functions as F
 source_table = "lab_talan.silver.regularite_ter"
 target_table = "lab_talan.gold.kpi_retards"
 
-# Agrège les volumes par mois et région pour calculer des taux pondérés.
+source = spark.table(source_table)
+
+# Additionne les volumes chaque mois et pour chaque région.
+retards = source.groupBy("date", "region").agg(
+    F.sum("nombre_trains_programmes").alias("nombre_trains_programmes"),
+    F.sum("nombre_trains_ayant_circule").alias("nombre_trains_ayant_circule"),
+    F.sum("nombre_trains_annules").alias("nombre_trains_annules"),
+    F.sum("nombre_trains_en_retard_a_l_arrivee").alias(
+        "nombre_trains_en_retard_a_l_arrivee"
+    ),
+)
+
+# Calcule les taux à partir des totaux, et évite une division par zéro.
 retards = (
-    spark.table(source_table)
-    .groupBy("date", "region")
-    .agg(
-        F.sum("nombre_trains_programmes").alias("nombre_trains_programmes"),
-        F.sum("nombre_trains_ayant_circule").alias(
-            "nombre_trains_ayant_circule"
-        ),
-        F.sum("nombre_trains_annules").alias("nombre_trains_annules"),
-        F.sum("nombre_trains_en_retard_a_l_arrivee").alias(
-            "nombre_trains_en_retard_a_l_arrivee"
-        ),
-    )
+    retards
     .withColumn(
         "taux_trains_annules_pct",
         F.when(
             F.col("nombre_trains_programmes") > 0,
-            F.col("nombre_trains_annules")
-            / F.col("nombre_trains_programmes")
-            * F.lit(100.0),
+            100 * F.col("nombre_trains_annules")
+            / F.col("nombre_trains_programmes"),
         ),
     )
     .withColumn(
         "taux_trains_en_retard_pct",
         F.when(
             F.col("nombre_trains_ayant_circule") > 0,
-            F.col("nombre_trains_en_retard_a_l_arrivee")
-            / F.col("nombre_trains_ayant_circule")
-            * F.lit(100.0),
+            100 * F.col("nombre_trains_en_retard_a_l_arrivee")
+            / F.col("nombre_trains_ayant_circule"),
         ),
     )
-    .withColumn("_gold_generated_at", F.current_timestamp())
 )
 
-invalid_rows = retards.where(
-    F.col("date").isNull()
-    | F.col("region").isNull()
-    | F.col("nombre_trains_programmes").isNull()
-    | F.col("nombre_trains_ayant_circule").isNull()
-    | F.col("nombre_trains_annules").isNull()
-    | F.col("nombre_trains_en_retard_a_l_arrivee").isNull()
-)
-invalid_count = invalid_rows.count()
-if invalid_count > 0:
-    raise ValueError(f"{invalid_count} invalid delay KPI rows found")
-
+# Vérifie qu'il y a des données avant d'écrire la table Gold.
 row_count = retards.count()
 if row_count == 0:
     raise ValueError("No delay KPI rows are available")
 
-retards.write.format("delta").mode("overwrite").option(
-    "overwriteSchema", "true"
-).saveAsTable(target_table)
+# Enregistre la table Gold.
+retards.withColumn("_gold_generated_at", F.current_timestamp()).write.format(
+    "delta"
+).mode("overwrite").option("overwriteSchema", "true").saveAsTable(target_table)
 
 print(f"Wrote {row_count} rows to {target_table}")
