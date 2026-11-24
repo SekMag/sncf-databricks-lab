@@ -121,38 +121,31 @@ Tables cibles envisagées :
 
 **Objectif :** fournir des agrégats adaptés à l’analyse et aux tableaux de bord.
 
-Indicateurs envisagés :
-
-- ponctualité moyenne et taux de retard
-- évolution mensuelle
-- classement des axes et des régions
-- comparaison TER / TGV
-
-Tables cibles envisagées :
+Le workflow publie les tables suivantes :
 
 - `gold.kpi_ponctualite`
 - `gold.kpi_retards`
 - `gold.top_axes`
+- `gold.top_regions`
+
+`kpi_ponctualite` contient l'évolution mensuelle par région (TER), par axe
+(TGV) et pour chaque réseau. Pour TER, le taux est calculé comme
+`(trains ayant circulé - trains en retard à l'arrivée) / trains ayant circulé`.
+Pour TGV, il reprend la ponctualité à l'origine fournie par la source. Les
+bases de mesure étant différentes (arrivée pour TER, origine pour TGV), la
+comparaison entre réseaux doit être interprétée avec cette réserve.
+
+`kpi_retards` détaille les trains en retard et leur taux parmi les trains ayant
+circulé, par région et par mois, ainsi qu'au niveau du réseau TER. `top_axes`
+classe les axes TGV selon leur ponctualité moyenne à l'origine sur l'ensemble
+des mois. `top_regions` classe les régions TER selon leur ponctualité pondérée
+par le nombre de trains ayant circulé.
 
 ## 🔄 Workflow Databricks
 
-```text
-load_ref_gares
-      │
-      ├── load_regularite_ter
-      └── load_regularite_tgv
-                  │
-                  ▼
-            quality_checks
-                  │
-                  ▼
-          silver_enrichment
-                  │
-                  ▼
-              gold_kpis
-```
-
-Les dépendances exactes entre les tâches seront définies dans `resources/jobs.yml`.
+Les tâches `build_silver_regularite_ter` et `build_silver_regularite_tgv`
+alimentent `build_gold_kpis`, qui produit les quatre tables Gold ci-dessus.
+Les dépendances sont définies dans `resources/jobs.yml`.
 
 ## ✅ Contrôles qualité
 

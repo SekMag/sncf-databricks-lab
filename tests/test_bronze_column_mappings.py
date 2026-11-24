@@ -138,5 +138,31 @@ class SilverNotebookTests(unittest.TestCase):
         self.assertIn("Excluded {missing_metrics_count}", notebook_source)
 
 
+class GoldNotebookTests(unittest.TestCase):
+    def test_gold_notebook_is_syntax_valid_and_writes_kpi_tables(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_kpis.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+        ast.parse(notebook_source)
+
+        for table_name in (
+            "lab_talan.gold.kpi_ponctualite",
+            "lab_talan.gold.kpi_retards",
+            "lab_talan.gold.top_axes",
+            "lab_talan.gold.top_regions",
+        ):
+            with self.subTest(table=table_name):
+                self.assertIn(table_name, notebook_source)
+
+    def test_gold_job_depends_on_both_regularity_silver_tasks(self):
+        jobs_source = (ROOT / "resources" / "jobs.yml").read_text(
+            encoding="utf-8"
+        )
+        gold_task = jobs_source.split("- task_key: build_gold_kpis", 1)[1]
+
+        self.assertIn("- task_key: build_silver_regularite_ter", gold_task)
+        self.assertIn("- task_key: build_silver_regularite_tgv", gold_task)
+        self.assertIn("../notebooks/gold/build_kpis.py", gold_task)
+
+
 if __name__ == "__main__":
     unittest.main()
