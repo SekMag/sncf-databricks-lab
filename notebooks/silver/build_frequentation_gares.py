@@ -61,14 +61,14 @@ if invalid_count > 0:
     raise ValueError(
         f"{invalid_count} invalid frequentation rows found; write aborted"
     )
+else:
+    row_count = frequentation.count()
+    if row_count == 0:
+        raise ValueError("No station frequentation rows are available")
 
-row_count = frequentation.count()
-if row_count == 0:
-    raise ValueError("No station frequentation rows are available")
+    # Remplace la table Silver avec les données contrôlées et enrichies.
+    frequentation.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).saveAsTable(target_table)
 
-# Remplace la table Silver avec les données contrôlées et enrichies.
-frequentation.write.format("delta").mode("overwrite").option(
-    "overwriteSchema", "true"
-).saveAsTable(target_table)
-
-print(f"Wrote {row_count} rows to {target_table}")
+    print(f"Wrote {row_count} rows to {target_table}")
