@@ -121,44 +121,31 @@ Tables cibles envisagées :
 
 **Objectif :** fournir des agrégats adaptés à l’analyse et aux tableaux de bord.
 
-Notebooks Gold :
+Le workflow publie les tables suivantes :
 
-- `notebooks/gold/build_kpi_ponctualite.py` unifie les indicateurs mensuels TER
-  par région et TGV par axe. Les métriques propres à un transport restent nulles
-  pour l’autre ; le taux TER est calculé à partir des trains en retard et ayant
-  circulé.
-- `notebooks/gold/build_kpi_retards.py` agrège les volumes TER par mois et
-  région, puis calcule les taux d’annulation et de retard à partir des totaux
-  (taux pondérés, et non moyenne des taux régionaux).
-- `notebooks/gold/build_top_axes.py` classe les axes TGV selon leur régularité
-  composite moyenne sur les mois disponibles, avec la ponctualité à l’origine en
-  second critère.
+- `gold.kpi_ponctualite`
+- `gold.kpi_retards`
+- `gold.top_axes`
+- `gold.top_regions`
 
-Tables produites :
+`kpi_ponctualite` contient l'évolution mensuelle par région (TER), par axe
+(TGV) et pour chaque réseau. Pour TER, le taux est calculé comme
+`(trains ayant circulé - trains en retard à l'arrivée) / trains ayant circulé`.
+Pour TGV, il reprend la ponctualité à l'origine fournie par la source. Les
+bases de mesure étant différentes (arrivée pour TER, origine pour TGV), la
+comparaison entre réseaux doit être interprétée avec cette réserve.
 
-- `lab_talan.gold.kpi_ponctualite`
-- `lab_talan.gold.kpi_retards`
-- `lab_talan.gold.top_axes`
+`kpi_retards` détaille les trains en retard et leur taux parmi les trains ayant
+circulé, par région et par mois, ainsi qu'au niveau du réseau TER. `top_axes`
+classe les axes TGV selon leur ponctualité moyenne à l'origine sur l'ensemble
+des mois. `top_regions` classe les régions TER selon leur ponctualité pondérée
+par le nombre de trains ayant circulé.
 
 ## 🔄 Workflow Databricks
 
-```text
-load_ref_gares
-      │
-      ├── load_regularite_ter
-      └── load_regularite_tgv
-                  │
-                  ▼
-            quality_checks
-                  │
-                  ▼
-          silver_enrichment
-                  │
-                  ▼
-              gold_kpis
-```
-
-Les dépendances exactes entre les tâches seront définies dans `resources/jobs.yml`.
+Les tâches `build_silver_regularite_ter` et `build_silver_regularite_tgv`
+alimentent `build_gold_kpis`, qui produit les quatre tables Gold ci-dessus.
+Les dépendances sont définies dans `resources/jobs.yml`.
 
 ## ✅ Contrôles qualité
 
