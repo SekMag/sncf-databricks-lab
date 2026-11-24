@@ -203,6 +203,22 @@ class IsoProdNotebookTests(unittest.TestCase):
                 self.assertNotIn(".saveAsTable(", notebook_source)
                 self.assertNotIn(".write.format(", notebook_source)
 
+    def test_frequentation_quality_branch_is_kept_before_silver_write(self):
+        jobs_source = (ROOT / "resources" / "jobs.yml").read_text(
+            encoding="utf-8"
+        )
+        notebook_source = (
+            ROOT / "notebooks" / "silver" / "build_frequentation_gares.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("task_key: frequentation_has_invalid_rows", jobs_source)
+        self.assertIn('outcome: "true"', jobs_source)
+        self.assertIn('outcome: "false"', jobs_source)
+        self.assertIn(
+            "dbutils.jobs.taskValues.set(key=\"invalid_count\", value=invalid_count)",
+            notebook_source,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
