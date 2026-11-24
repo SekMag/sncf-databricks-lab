@@ -6,6 +6,18 @@ frequentation_source = "lab_talan.bronze.frequentation_gares"
 gares_source = "lab_talan.bronze.ref_gares"
 target_table = "lab_talan.silver.frequentation_gares"
 
+dbutils.widgets.text("action", "write")
+dbutils.widgets.text("invalid_count", "0")
+action = dbutils.widgets.get("action")
+
+if action == "fail":
+    invalid_count = int(dbutils.widgets.get("invalid_count"))
+    raise ValueError(
+        f"{invalid_count} invalid frequentation rows found; write aborted"
+    )
+if action not in ("validate", "write"):
+    raise ValueError(f"Unsupported action: {action}")
+
 # Normalise les champs clés et convertit les volumes en valeurs numériques.
 frequentation = (
     spark.table(frequentation_source)
@@ -57,7 +69,10 @@ invalid_rows = frequentation.where(
 )
 
 invalid_count = invalid_rows.count()
-if invalid_count > 0:
+if action == "validate":
+    dbutils.jobs.taskValues.set(key="invalid_count", value=invalid_count)
+    print(f"Found {invalid_count} invalid frequentation rows")
+elif invalid_count > 0:
     raise ValueError(
         f"{invalid_count} invalid frequentation rows found; write aborted"
     )
