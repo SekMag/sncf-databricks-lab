@@ -216,7 +216,7 @@ Le workflow `.github/workflows/deploy.yml` exécute les contrôles sur les Pull 
 - [ ] Importer et documenter les jeux de données SNCF
 - [ ] Développer les notebooks d’ingestion Bronze
 - [ ] Développer les transformations Silver
-- [ ] Construire les agrégats Gold
+- [x] Construire les agrégats Gold
 - [ ] Ajouter les contrôles qualité et les tests
 - [ ] Configurer le workflow Databricks
 - [ ] Mettre en place le déploiement GitHub Actions par environnement

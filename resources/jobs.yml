@@ -1,7 +1,7 @@
 resources:
   jobs:
     bronze_to_silver:
-      name: ${bundle.target}-bronze-to-gold
+      name: ${bundle.target}-bronze-silver-gold
       tasks:
         - task_key: load_ref_gares
           notebook_task:
@@ -15,12 +15,38 @@ resources:
         - task_key: load_regularite_tgv
           notebook_task:
             notebook_path: ../notebooks/bronze/load_regularite_tgv.py
-        - task_key: build_silver_frequentation
+        - task_key: validate_frequentation
           depends_on:
             - task_key: load_ref_gares
             - task_key: load_frequentation_gares
           notebook_task:
             notebook_path: ../notebooks/silver/build_frequentation_gares.py
+            base_parameters:
+              action: validate
+        - task_key: frequentation_has_invalid_rows
+          depends_on:
+            - task_key: validate_frequentation
+          condition_task:
+            left: "{{tasks.validate_frequentation.values.invalid_count}}"
+            op: GREATER_THAN
+            right: "0"
+        - task_key: fail_invalid_frequentation
+          depends_on:
+            - task_key: frequentation_has_invalid_rows
+              outcome: "true"
+          notebook_task:
+            notebook_path: ../notebooks/silver/build_frequentation_gares.py
+            base_parameters:
+              action: fail
+              invalid_count: "{{tasks.validate_frequentation.values.invalid_count}}"
+        - task_key: build_silver_frequentation
+          depends_on:
+            - task_key: frequentation_has_invalid_rows
+              outcome: "false"
+          notebook_task:
+            notebook_path: ../notebooks/silver/build_frequentation_gares.py
+            base_parameters:
+              action: write
         - task_key: build_silver_regularite_ter
           depends_on:
             - task_key: load_regularite_ter

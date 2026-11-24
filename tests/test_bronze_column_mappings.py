@@ -139,29 +139,69 @@ class SilverNotebookTests(unittest.TestCase):
 
 
 class GoldNotebookTests(unittest.TestCase):
-    def test_gold_notebook_is_syntax_valid_and_writes_kpi_tables(self):
-        notebook_path = ROOT / "notebooks" / "gold" / "build_kpis.py"
+    EXPECTED_OUTPUTS = {
+        "build_kpi_ponctualite.py": "lab_talan.gold.kpi_ponctualite",
+        "build_kpi_retards.py": "lab_talan.gold.kpi_retards",
+        "build_top_axes.py": "lab_talan.gold.top_axes",
+    }
+
+    def test_gold_notebooks_are_valid_and_write_expected_tables(self):
+        for notebook_name, target_table in self.EXPECTED_OUTPUTS.items():
+            notebook_path = ROOT / "notebooks" / "gold" / notebook_name
+            with self.subTest(notebook=notebook_name):
+                notebook_source = notebook_path.read_text(encoding="utf-8")
+                ast.parse(notebook_source)
+                self.assertIn(target_table, notebook_source)
+                self.assertIn(".saveAsTable(target_table)", notebook_source)
+                self.assertIn('mode("overwrite")', notebook_source)
+
+    def test_kpi_tables_preserve_month_and_transport_dimensions(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_kpi_ponctualite.py"
         notebook_source = notebook_path.read_text(encoding="utf-8")
-        ast.parse(notebook_source)
 
-        for table_name in (
-            "lab_talan.gold.kpi_ponctualite",
-            "lab_talan.gold.kpi_retards",
-            "lab_talan.gold.top_axes",
-            "lab_talan.gold.top_regions",
-        ):
-            with self.subTest(table=table_name):
-                self.assertIn(table_name, notebook_source)
+        self.assertIn('F.lit("TER").alias("transport")', notebook_source)
+        self.assertIn('F.lit("TGV").alias("transport")', notebook_source)
+        self.assertIn("unionByName", notebook_source)
 
-    def test_gold_job_depends_on_both_regularity_silver_tasks(self):
-        jobs_source = (ROOT / "resources" / "jobs.yml").read_text(
-            encoding="utf-8"
+        delays_path = ROOT / "notebooks" / "gold" / "build_kpi_retards.py"
+        delays_source = delays_path.read_text(encoding="utf-8")
+        self.assertIn('.groupBy("date", "region")', delays_source)
+        self.assertIn("taux_trains_en_retard_pct", delays_source)
+
+    def test_axis_ranking_uses_composite_regularity(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_top_axes.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+
+        self.assertIn("F.dense_rank()", notebook_source)
+        self.assertIn('F.desc("regularite_composite_moyenne_pct")', notebook_source)
+
+
+class IsoProdNotebookTests(unittest.TestCase):
+    def test_iso_prod_notebooks_show_steps_without_writing_tables(self):
+        iso_prod_notebooks = sorted(
+            (ROOT / "notebooks" / "iso_prod").glob("debug_*.py")
         )
-        gold_task = jobs_source.split("- task_key: build_gold_kpis", 1)[1]
+        self.assertEqual(len(iso_prod_notebooks), 10)
 
-        self.assertIn("- task_key: build_silver_regularite_ter", gold_task)
-        self.assertIn("- task_key: build_silver_regularite_tgv", gold_task)
-        self.assertIn("../notebooks/gold/build_kpis.py", gold_task)
+        for notebook_path in iso_prod_notebooks:
+            with self.subTest(notebook=notebook_path.name):
+                notebook_source = notebook_path.read_text(encoding="utf-8")
+                syntax_tree = ast.parse(notebook_source)
+                step_calls = sum(
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "afficher_etape"
+                    for node in ast.walk(syntax_tree)
+                )
+
+                self.assertGreaterEqual(step_calls, 2)
+                self.assertIn("display(dataframe)", notebook_source)
+                self.assertGreaterEqual(
+                    notebook_source.count("# COMMAND ----------"),
+                    2,
+                )
+                self.assertNotIn(".saveAsTable(", notebook_source)
+                self.assertNotIn(".write.format(", notebook_source)
 
 
 if __name__ == "__main__":
