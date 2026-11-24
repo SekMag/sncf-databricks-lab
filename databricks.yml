@@ -14,3 +14,7 @@ targets:
     mode: development
     workspace:
       profile: DEV
+  prod:
+    mode: production
+    workspace:
+      profile: PROD
