@@ -175,6 +175,24 @@ class GoldNotebookTests(unittest.TestCase):
         self.assertIn("F.dense_rank()", notebook_source)
         self.assertIn('F.desc("regularite_composite_moyenne_pct")', notebook_source)
 
+    def test_national_kpi_combines_silver_frequentation_and_2025_performance(self):
+        notebook_path = ROOT / "notebooks" / "gold" / "build_kpis.py"
+        notebook_source = notebook_path.read_text(encoding="utf-8")
+        ast.parse(notebook_source)
+
+        self.assertIn("lab_talan.silver.frequentation_gares", notebook_source)
+        self.assertIn(
+            "lab_talan.gold.kpi_national_frequentation_performance",
+            notebook_source,
+        )
+        self.assertIn('F.year("periode") == 2025', notebook_source)
+
+        jobs_source = (ROOT / "resources" / "jobs.yml").read_text(
+            encoding="utf-8"
+        )
+        gold_task = jobs_source.split("- task_key: build_gold_kpis", 1)[1]
+        self.assertIn("- task_key: build_silver_frequentation", gold_task)
+
 
 class IsoProdNotebookTests(unittest.TestCase):
     def test_iso_prod_notebooks_show_steps_without_writing_tables(self):

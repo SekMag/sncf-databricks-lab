@@ -4,6 +4,7 @@ from pyspark.sql import functions as F
 
 ter_source = "lab_talan.silver.regularite_ter"
 tgv_source = "lab_talan.silver.regularite_tgv"
+frequentation_source = "lab_talan.silver.frequentation_gares"
 
 spark.sql("CREATE SCHEMA IF NOT EXISTS lab_talan.gold")
 
@@ -21,11 +22,22 @@ tgv = spark.table(tgv_source).select(
     F.col("regularite_composite").cast("double").alias("regularite_composite"),
     F.col("ponctualite_origine").cast("double").alias("ponctualite_origine"),
 )
+frequentation = spark.table(frequentation_source).select(
+    F.trim(F.col("code_uic")).alias("code_uic"),
+    F.col("total_voyageurs_2025")
+    .cast("double")
+    .alias("total_voyageurs_2025"),
+    F.col("total_voyageurs_plus_non_voyageurs_2025")
+    .cast("double")
+    .alias("total_voyageurs_plus_non_voyageurs_2025"),
+)
 
 if ter.limit(1).count() == 0:
     raise ValueError(f"No TER regularity rows found in {ter_source}")
 if tgv.limit(1).count() == 0:
     raise ValueError(f"No TGV regularity rows found in {tgv_source}")
+if frequentation.limit(1).count() == 0:
+    raise ValueError(f"No station fréquentation rows found in {frequentation_source}")
 
 invalid_ter = ter.where(
     F.col("periode").isNull()
@@ -53,6 +65,92 @@ invalid_tgv = tgv.where(
 invalid_tgv_count = invalid_tgv.count()
 if invalid_tgv_count > 0:
     raise ValueError(f"{invalid_tgv_count} invalid TGV rows found in {tgv_source}")
+
+invalid_frequentation = frequentation.where(
+    F.col("code_uic").isNull()
+    | F.col("total_voyageurs_2025").isNull()
+    | F.col("total_voyageurs_plus_non_voyageurs_2025").isNull()
+    | (F.col("total_voyageurs_2025") < 0)
+    | (F.col("total_voyageurs_plus_non_voyageurs_2025") < 0)
+)
+invalid_frequentation_count = invalid_frequentation.count()
+if invalid_frequentation_count > 0:
+    raise ValueError(
+        f"{invalid_frequentation_count} invalid station fréquentation rows "
+        f"found in {frequentation_source}"
+    )
+
+ter_2025 = ter.where(F.year("periode") == 2025)
+tgv_2025 = tgv.where(F.year("periode") == 2025)
+if ter_2025.limit(1).count() == 0:
+    raise ValueError("No TER regularity rows found for 2025")
+if tgv_2025.limit(1).count() == 0:
+    raise ValueError("No TGV regularity rows found for 2025")
+
+frequentation_summary = frequentation.agg(
+    F.countDistinct("code_uic").alias("nb_gares"),
+    F.sum("total_voyageurs_2025").alias("total_voyageurs_2025"),
+    F.sum("total_voyageurs_plus_non_voyageurs_2025").alias(
+        "total_voyageurs_plus_non_voyageurs_2025"
+    ),
+)
+ter_summary_2025 = ter_2025.agg(
+    F.sum("trains_circules").alias("trains_circules_ter_2025"),
+    F.sum("trains_en_retard").alias("trains_en_retard_ter_2025"),
+    F.countDistinct("periode").alias("mois_ter_observes_2025"),
+)
+tgv_monthly_2025 = tgv_2025.groupBy("periode").agg(
+    F.avg("ponctualite_origine").alias("ponctualite_tgv_mensuelle_pct"),
+    F.avg("regularite_composite").alias("regularite_tgv_mensuelle_pct"),
+)
+tgv_summary_2025 = tgv_monthly_2025.agg(
+    F.avg("ponctualite_tgv_mensuelle_pct").alias(
+        "ponctualite_tgv_moyenne_pct"
+    ),
+    F.avg("regularite_tgv_mensuelle_pct").alias(
+        "regularite_tgv_moyenne_pct"
+    ),
+    F.count("*").alias("mois_tgv_observes_2025"),
+)
+kpi_national_frequentation_performance = (
+    frequentation_summary.crossJoin(ter_summary_2025)
+    .crossJoin(tgv_summary_2025)
+    .select(
+        F.lit(2025).alias("annee"),
+        "nb_gares",
+        "total_voyageurs_2025",
+        "total_voyageurs_plus_non_voyageurs_2025",
+        F.when(
+            F.col("trains_circules_ter_2025") > 0,
+            F.round(
+                (
+                    F.col("trains_circules_ter_2025")
+                    - F.col("trains_en_retard_ter_2025")
+                )
+                / F.col("trains_circules_ter_2025")
+                * 100,
+                2,
+            ),
+        ).alias("ponctualite_ter_pct"),
+        F.when(
+            F.col("trains_circules_ter_2025") > 0,
+            F.round(
+                F.col("trains_en_retard_ter_2025")
+                / F.col("trains_circules_ter_2025")
+                * 100,
+                2,
+            ),
+        ).alias("taux_retard_ter_pct"),
+        F.round("ponctualite_tgv_moyenne_pct", 2).alias(
+            "ponctualite_tgv_moyenne_pct"
+        ),
+        F.round("regularite_tgv_moyenne_pct", 2).alias(
+            "regularite_tgv_moyenne_pct"
+        ),
+        "mois_ter_observes_2025",
+        "mois_tgv_observes_2025",
+    )
+)
 
 ter_by_region = ter.groupBy("periode", "region").agg(
     F.sum("trains_circules").alias("trains_circules"),
@@ -234,3 +332,7 @@ write_gold_table(kpi_ponctualite, "lab_talan.gold.kpi_ponctualite")
 write_gold_table(kpi_retards, "lab_talan.gold.kpi_retards")
 write_gold_table(top_axes, "lab_talan.gold.top_axes")
 write_gold_table(top_regions, "lab_talan.gold.top_regions")
+write_gold_table(
+    kpi_national_frequentation_performance,
+    "lab_talan.gold.kpi_national_frequentation_performance",
+)
