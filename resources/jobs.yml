@@ -59,6 +59,7 @@ resources:
             notebook_path: ../notebooks/silver/build_regularite_tgv.py
         - task_key: build_gold_kpis
           depends_on:
+            - task_key: build_silver_frequentation
             - task_key: build_silver_regularite_ter
             - task_key: build_silver_regularite_tgv
           notebook_task:

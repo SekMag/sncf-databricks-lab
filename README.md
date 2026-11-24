@@ -127,6 +127,7 @@ Le workflow publie les tables suivantes :
 - `gold.kpi_retards`
 - `gold.top_axes`
 - `gold.top_regions`
+- `gold.kpi_national_frequentation_performance`
 
 `kpi_ponctualite` contient l'évolution mensuelle par région (TER), par axe
 (TGV) et pour chaque réseau. Pour TER, le taux est calculé comme
@@ -141,10 +142,19 @@ classe les axes TGV selon leur ponctualité moyenne à l'origine sur l'ensemble
 des mois. `top_regions` classe les régions TER selon leur ponctualité pondérée
 par le nombre de trains ayant circulé.
 
+`kpi_national_frequentation_performance` présente, pour 2025, la fréquentation
+totale de toutes les gares avec les performances TER et TGV agrégées au niveau
+national. La fréquentation n'étant pas ventilée par mode, ces valeurs sont
+présentées côte à côte et ne représentent pas une relation causale ni une
+mesure par train ou par gare. La ponctualité TER est pondérée par le nombre de
+trains ayant circulé; les taux TGV sont des moyennes mensuelles des axes, faute
+de volumes de trains dans la source TGV.
+
 ## 🔄 Workflow Databricks
 
-Les tâches `build_silver_regularite_ter` et `build_silver_regularite_tgv`
-alimentent `build_gold_kpis`, qui produit les quatre tables Gold ci-dessus.
+Les tâches `build_silver_frequentation`, `build_silver_regularite_ter` et
+`build_silver_regularite_tgv` alimentent `build_gold_kpis`, qui produit les
+cinq tables Gold ci-dessus.
 Les dépendances sont définies dans `resources/jobs.yml`.
 
 ## ✅ Contrôles qualité
