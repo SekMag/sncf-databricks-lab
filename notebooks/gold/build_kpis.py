@@ -6,8 +6,10 @@ ter_source = "lab_talan.silver.regularite_ter"
 tgv_source = "lab_talan.silver.regularite_tgv"
 frequentation_source = "lab_talan.silver.frequentation_gares"
 
+# Crée le schéma Gold s'il n'existe pas encore.
 spark.sql("CREATE SCHEMA IF NOT EXISTS lab_talan.gold")
 
+# Charge les mesures Silver et harmonise leurs types pour les agrégations.
 ter = spark.table(ter_source).select(
     F.col("date").cast("date").alias("periode"),
     F.trim(F.col("region")).alias("region"),
@@ -32,6 +34,7 @@ frequentation = spark.table(frequentation_source).select(
     .alias("total_voyageurs_plus_non_voyageurs_2025"),
 )
 
+# Le calcul Gold dépend des trois tables Silver et échoue si l'une est vide.
 if ter.limit(1).count() == 0:
     raise ValueError(f"No TER regularity rows found in {ter_source}")
 if tgv.limit(1).count() == 0:
@@ -39,6 +42,7 @@ if tgv.limit(1).count() == 0:
 if frequentation.limit(1).count() == 0:
     raise ValueError(f"No station fréquentation rows found in {frequentation_source}")
 
+# Vérifie que les données TER permettent de calculer des taux cohérents.
 invalid_ter = ter.where(
     F.col("periode").isNull()
     | F.col("region").isNull()
@@ -52,6 +56,7 @@ invalid_ter_count = invalid_ter.count()
 if invalid_ter_count > 0:
     raise ValueError(f"{invalid_ter_count} invalid TER rows found in {ter_source}")
 
+# Les indicateurs TGV doivent être renseignés et exprimés en pourcentage.
 invalid_tgv = tgv.where(
     F.col("periode").isNull()
     | F.col("axe").isNull()
@@ -66,6 +71,7 @@ invalid_tgv_count = invalid_tgv.count()
 if invalid_tgv_count > 0:
     raise ValueError(f"{invalid_tgv_count} invalid TGV rows found in {tgv_source}")
 
+# Vérifie les clés et volumes de fréquentation avant leur agrégation nationale.
 invalid_frequentation = frequentation.where(
     F.col("code_uic").isNull()
     | F.col("total_voyageurs_2025").isNull()
@@ -80,6 +86,8 @@ if invalid_frequentation_count > 0:
         f"found in {frequentation_source}"
     )
 
+# La fréquentation disponible est annuelle 2025; les performances sont filtrées
+# sur la même année pour présenter des périodes comparables.
 ter_2025 = ter.where(F.year("periode") == 2025)
 tgv_2025 = tgv.where(F.year("periode") == 2025)
 if ter_2025.limit(1).count() == 0:
@@ -87,6 +95,8 @@ if ter_2025.limit(1).count() == 0:
 if tgv_2025.limit(1).count() == 0:
     raise ValueError("No TGV regularity rows found for 2025")
 
+# Agrège séparément chaque source à l'échelle nationale. Il n'existe pas de
+# clé commune pour attribuer les voyageurs aux lignes TER ou aux axes TGV.
 frequentation_summary = frequentation.agg(
     F.countDistinct("code_uic").alias("nb_gares"),
     F.sum("total_voyageurs_2025").alias("total_voyageurs_2025"),
@@ -112,6 +122,9 @@ tgv_summary_2025 = tgv_monthly_2025.agg(
     ),
     F.count("*").alias("mois_tgv_observes_2025"),
 )
+# Assemble les agrégats indépendants dans une ligne de synthèse annuelle.
+# Le taux TER est pondéré par le nombre de trains; le taux TGV est la moyenne
+# des moyennes mensuelles par axe, faute de volumes de trains dans la source.
 kpi_national_frequentation_performance = (
     frequentation_summary.crossJoin(ter_summary_2025)
     .crossJoin(tgv_summary_2025)
@@ -152,6 +165,7 @@ kpi_national_frequentation_performance = (
     )
 )
 
+# Prépare les agrégats TER mensuels par région et par réseau.
 ter_by_region = ter.groupBy("periode", "region").agg(
     F.sum("trains_circules").alias("trains_circules"),
     F.sum("trains_en_retard").alias("trains_en_retard"),
@@ -162,6 +176,7 @@ ter_by_network = ter.groupBy("periode").agg(
 ).withColumn("reseau", F.lit("TER"))
 
 
+# Produit le taux de ponctualité TER à l'arrivée, pondéré par les trains circulés.
 def ter_punctuality(dataframe, entity_type, entity_column):
     return dataframe.select(
         "periode",
@@ -200,6 +215,7 @@ tgv_by_network = tgv.groupBy("periode").agg(
     F.avg("ponctualite_origine").alias("taux_ponctualite_pct")
 ).withColumn("reseau", F.lit("TGV"))
 
+# Pour le TGV, conserve les résultats mensuels par axe et au niveau du réseau.
 tgv_punctuality_by_axis = tgv_by_axis.select(
     "periode",
     F.lit("TGV").alias("mode"),
@@ -225,6 +241,7 @@ kpi_ponctualite = (
 )
 
 
+# Calcule la part des trains TER en retard parmi les trains ayant circulé.
 def ter_delay_rate(dataframe, entity_type, entity_column):
     return dataframe.select(
         "periode",
@@ -251,6 +268,7 @@ kpi_retards = (
     .unionByName(ter_delay_rate(ter_by_network, "reseau", "reseau"))
 )
 
+# Classe les axes TGV selon leur ponctualité moyenne sur toute la période.
 axis_rank = Window.orderBy(
     F.desc("taux_ponctualite_moyen_pct"),
     F.asc("axe"),
@@ -276,6 +294,7 @@ top_axes = (
     )
 )
 
+# Classe les régions TER selon leur ponctualité globale, pondérée par le trafic.
 region_summary = ter.groupBy("region").agg(
     F.sum("trains_circules").alias("trains_circules"),
     F.sum("trains_en_retard").alias("trains_en_retard"),
@@ -313,6 +332,7 @@ top_regions = (
 )
 
 
+# Remplace chaque table Gold après avoir vérifié que le résultat n'est pas vide.
 def write_gold_table(dataframe, table_name):
     row_count = dataframe.count()
     if row_count == 0:
